@@ -7,6 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Query
 import retrofit2.http.Url
 
 /**
@@ -19,7 +20,7 @@ interface ApiService {
     @Multipart
     @POST
     fun postFormData(
-        @Url url: String = "script.google.com/macros/s/AKfycbxF0wmA4OobTK1JuIvse27v8T76brtSwOV25a7TtPcKf6fihpz_MdEGeku-vK5pne3Z1w/exec",
+        @Url url: String,
         @Part("Name") key1: RequestBody,
         @Part("Phone") key2: RequestBody,
         @Part("State") key3: RequestBody,
@@ -35,8 +36,24 @@ interface ApiService {
     fun submitAudioFile(
         @Url url: String,
         @Part("audio") key1: RequestBody,
-        @Part("text") key2: String = "Hello everyone I am a truck driver from India, who wants to go to Europe for truck driver job and earn good money for me and my family. I love driving trucks and I want to travel to get more experience."
+        @Part("text") key2: RequestBody
     ): Call<AudioSubmitResponseData>
+
+    @POST
+    fun getHitUrl(
+        @Url url: String,
+        @Query("id")  uuid: RequestBody
+    ) : Call<UrlResponseData>
+    @Multipart
+    @POST
+    fun submitEntireForm(
+        @Url url: String,
+        @Part("id") key1: RequestBody,
+        @Part("formNo") key2: RequestBody,
+        @Part("sheetName") key3: RequestBody,
+        @Part("score") key4: RequestBody,
+        @Part("retry_no") key5: RequestBody
+    ): Call<FormResponseData>
 }
 
 data class AudioSubmitResponseData(
@@ -53,6 +70,10 @@ data class AudioSubmitResponseData(
 data class FormResponseData(
     val result: String,
     val row: Int
+)
+
+data class UrlResponseData(
+    val url: String
 )
 
 
