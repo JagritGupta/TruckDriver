@@ -17,6 +17,7 @@ import java.util.UUID
 @RequiresApi(Build.VERSION_CODES.S)
 class FormActivity : AppCompatActivity() {
     private lateinit var binding: ActivityFormBinding
+    private var id = UUID.randomUUID().toString()
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityFormBinding.inflate(layoutInflater)
         super.onCreate(savedInstanceState)
@@ -37,17 +38,6 @@ class FormActivity : AppCompatActivity() {
                 progressBar.isVisible = true
                 scrollView.isVisible = false
 
-                postFormProcess(
-                    onSuccess = {
-                        progressBar.isVisible = false
-                        startActivity(Intent(this@FormActivity, AudioFormActivity::class.java))
-                    },
-                    onFailure = { error ->
-                        progressBar.isVisible = false
-                        Toast.makeText(this@FormActivity, error, Toast.LENGTH_LONG).show()
-                    }
-                )
-
                 if (name.isNotEmpty() && phone.isNotEmpty() && state.isNotEmpty() && years.isNotEmpty() && country.isNotEmpty()) {
                     postFormProcess(
                         formData = FormData(
@@ -55,23 +45,25 @@ class FormActivity : AppCompatActivity() {
                             phone,
                             state,
                             years,
-                            id = UUID.randomUUID().toString(),
+                            id = id,
                             Content = country
                         ),
                         onSuccess = {
-                            startActivity(Intent(this@FormActivity, AudioFormActivity::class.java))
+                            val intent = Intent(this@FormActivity, AudioFormActivity::class.java)
+                            intent.putExtra("uuid_string", id)
+                            startActivity(intent)
                         },
                         onFailure = { error ->
                             Toast.makeText(this@FormActivity, error, Toast.LENGTH_LONG).show()
                         }
                     )
                 } else {
-//                    Toast.makeText(
-//                        this@FormActivity,
-//                        "Input Fields cannot be empty",
-//                        Toast.LENGTH_LONG
-//                    )
-//                        .show()
+                    Toast.makeText(
+                        this@FormActivity,
+                        "Input Fields cannot be empty",
+                        Toast.LENGTH_LONG
+                    )
+                        .show()
                 }
             }
         }

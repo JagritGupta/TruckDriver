@@ -2,9 +2,6 @@ package com.example.skillbee
 
 import android.content.ContextWrapper
 import android.content.pm.PackageManager
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaFormat
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Bundle
@@ -26,16 +23,19 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.io.File
-import java.io.FileOutputStream
-import java.nio.ByteBuffer
 
 class AudioFormActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAudioFormBinding
     private lateinit var mediaRecorder: MediaRecorder
     private lateinit var mediaPlayer: MediaPlayer
+    private var retryCount = 0
+    private lateinit var id: String
+    private var score: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityAudioFormBinding.inflate(layoutInflater)
+        id = intent.getStringExtra("uuid_string").orEmpty()
+        Log.d("JAGRIT", "uuid- $id")
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
@@ -45,6 +45,8 @@ class AudioFormActivity : AppCompatActivity() {
 
         bindClicks()
     }
+
+    override fun onBackPressed() {}
 
     private fun bindClicks() {
         binding.apply {
@@ -108,19 +110,38 @@ class AudioFormActivity : AppCompatActivity() {
         Toast.makeText(this, "Recording Stopped", Toast.LENGTH_LONG).show()
 
 
-        uploadAudioRecording(onSuccess = {
-            Log.d("JAGRIT", "Success" + it.toString())
+        uploadAudioRecordingApi2(onSuccess = {
+            Log.d("JAGRIT", "Success - api2 : $it")
+
         }, onFailure = {
-            Log.d("JAGRIT", it)
+            Log.d("JAGRIT", "Failed - api2: $it")
         })
+
+        getUrlApi3(
+            onSuccess = { url ->
+                Log.d("JAGRIT", "Success - api3 : $url")
+
+                uploadFinalFormApi4(url, id, score, retryCount, onSuccess = {
+                    Log.d("JAGRIT", "Success - api4")
+
+                }, onFailure =  {
+                    Log.d("JAGRIT", "Error - api4 : $it")
+                })
+            },
+            onFailure = {
+                Log.d("JAGRIT", "Error - api3 : $it")
+                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+            }
+        )
     }
+
 
     private fun retryRecording() {
         binding.btnStopRecording.isVisible = true
         binding.btnStartRecording.isVisible = false
         binding.llRecorder.isVisible = false
         binding.llMediaPlayer.visibility = View.INVISIBLE
-
+        retryCount += 1
         startRecording()
     }
 
@@ -215,7 +236,7 @@ class AudioFormActivity : AppCompatActivity() {
         }
     }
 
-    fun uploadAudioRecording(
+    fun uploadAudioRecordingApi2(
         onSuccess: (AudioSubmitResponseData) -> Unit,
         onFailure: (String) -> Unit
     ) {
@@ -255,6 +276,82 @@ class AudioFormActivity : AppCompatActivity() {
             }
 
             override fun onFailure(call: Call<AudioSubmitResponseData>, t: Throwable) {
+                onFailure(t.localizedMessage.orEmpty())
+            }
+        })
+    }
+
+
+    private fun getUrlApi3(
+        onSuccess: (String) -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("id", id)
+            .build()
+
+        val service = RetrofitService.apiService.getHitUrl(
+            "https://internationaldriversgroup.com/api/speech",
+            requestBody,
+        )
+
+        // Use enqueue to perform network operations on a separate thread
+        service.enqueue(object : Callback<UrlResponseData> {
+            override fun onResponse(
+                call: Call<UrlResponseData>,
+                response: Response<UrlResponseData>
+            ) {
+                if (response.isSuccessful) {
+                    onSuccess(response.body()?.url.orEmpty())
+                } else {
+                    onFailure("FAILED")
+                }
+            }
+
+            override fun onFailure(call: Call<UrlResponseData>, t: Throwable) {
+                onFailure(t.localizedMessage.orEmpty())
+            }
+        })
+    }
+
+    private fun uploadFinalFormApi4(
+        url: String, id: String, score: Int, retryCount: Int, onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("id", id)
+            .addFormDataPart("formNo", "2")
+            .addFormDataPart("sheetName", "SpeechDriverPage")
+            .addFormDataPart("score", score.toString())
+            .addFormDataPart("retry_no", retryCount.toString())
+            .build()
+
+        val service = RetrofitService.apiService.submitEntireForm(
+//            url,
+            "https://script.google.com/macros/s/AKfycbwMVLYhsETXfhunclY7WWAbb3fL9xZdjHsvz2bpWo9Bk__Rk6WTMgU2jpQWztnyVxcBbQ/exec",
+            requestBody,
+            requestBody,
+            requestBody,
+            requestBody,
+            requestBody,
+        )
+
+        // Use enqueue to perform network operations on a separate thread
+        service.enqueue(object : Callback<FormResponseData> {
+            override fun onResponse(
+                call: Call<FormResponseData>,
+                response: Response<FormResponseData>
+            ) {
+                if (response.isSuccessful) {
+                    onSuccess()
+                } else {
+                    onFailure("FAILED")
+                }
+            }
+
+            override fun onFailure(call: Call<FormResponseData>, t: Throwable) {
                 onFailure(t.localizedMessage.orEmpty())
             }
         })
