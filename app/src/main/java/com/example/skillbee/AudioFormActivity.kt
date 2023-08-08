@@ -2,16 +2,17 @@ package com.example.skillbee
 
 import android.content.ContextWrapper
 import android.content.pm.PackageManager
+import android.media.MediaCodec
+import android.media.MediaCodecInfo
+import android.media.MediaFormat
 import android.media.MediaPlayer
 import android.media.MediaRecorder
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.util.Log
 import android.view.View
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -21,7 +22,12 @@ import com.example.skillbee.databinding.ActivityAudioFormBinding
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.io.File
+import java.io.FileOutputStream
+import java.nio.ByteBuffer
 
 class AudioFormActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAudioFormBinding
@@ -100,6 +106,13 @@ class AudioFormActivity : AppCompatActivity() {
         mediaPlayer.prepare()
 
         Toast.makeText(this, "Recording Stopped", Toast.LENGTH_LONG).show()
+
+
+        uploadAudioRecording(onSuccess = {
+            Log.d("JAGRIT", "Success" + it.toString())
+        }, onFailure = {
+            Log.d("JAGRIT", it)
+        })
     }
 
     private fun retryRecording() {
@@ -108,7 +121,6 @@ class AudioFormActivity : AppCompatActivity() {
         binding.llRecorder.isVisible = false
         binding.llMediaPlayer.visibility = View.INVISIBLE
 
-//        mediaRecorder.reset()
         startRecording()
     }
 
@@ -164,15 +176,6 @@ class AudioFormActivity : AppCompatActivity() {
         )
     }
 
-    private fun playAudio() {
-        Toast.makeText(this, "Playing Audio", Toast.LENGTH_LONG).show()
-
-        mediaPlayer = MediaPlayer()
-        mediaPlayer.setDataSource(getFilePath())
-        mediaPlayer.prepare()
-        mediaPlayer.start()
-    }
-
     private fun getFilePath(): String {
         val contextWrapper = ContextWrapper(applicationContext)
         val dir = contextWrapper.getExternalFilesDir(Environment.DIRECTORY_MUSIC)
@@ -188,7 +191,6 @@ class AudioFormActivity : AppCompatActivity() {
 
         return file.path
     }
-
 
     private fun isMicrophonePresent() =
         this.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)
@@ -213,7 +215,10 @@ class AudioFormActivity : AppCompatActivity() {
         }
     }
 
-    fun uploadFileToApi() {
+    fun uploadAudioRecording(
+        onSuccess: (AudioSubmitResponseData) -> Unit,
+        onFailure: (String) -> Unit
+    ) {
         val webMFilePath = getWebMFilePath()
         convertToWebM(getFilePath(), webMFilePath)
         val webMFile = File(webMFilePath)
@@ -221,6 +226,38 @@ class AudioFormActivity : AppCompatActivity() {
         val requestFile = RequestBody.create(mediaType, webMFile)
         val audioPart = MultipartBody.Part.createFormData("audio", webMFile.name, requestFile)
 
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addPart(audioPart)
+            .addFormDataPart(
+                "text",
+                "Hello everyone I am a truck driver from India, who wants to go to Europe for truck driver job and earn good money for me and my family. I love driving trucks and I want to travel to get more experience."
+            )
+            .build()
+
+        val service = RetrofitService.apiService.submitAudioFile(
+            "https://skillbee.com/api/speech-evaluator",
+            requestBody,
+            requestBody
+        )
+
+        // Use enqueue to perform network operations on a separate thread
+        service.enqueue(object : Callback<AudioSubmitResponseData> {
+            override fun onResponse(
+                call: Call<AudioSubmitResponseData>,
+                response: Response<AudioSubmitResponseData>
+            ) {
+                if (response.isSuccessful) {
+                    response.body()?.let { onSuccess(it) }
+                } else {
+                    onFailure("FAILED")
+                }
+            }
+
+            override fun onFailure(call: Call<AudioSubmitResponseData>, t: Throwable) {
+                onFailure(t.localizedMessage.orEmpty())
+            }
+        })
     }
 
     fun convertToWebM(inputFilePath: String, outputFilePath: String) {

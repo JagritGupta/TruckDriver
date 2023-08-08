@@ -35,7 +35,7 @@ interface ApiService {
     fun submitAudioFile(
         @Url url: String,
         @Part("audio") key1: RequestBody,
-        @Part("text") key2: String = "Hello everyone I am a truck driver from India, who wants to go to Europe for truck driver job and earn good money for me and my family. I love driving trucks and I want to travel to get more experience."
+        @Part("text") key2: RequestBody
     ): Call<AudioSubmitResponseData>
 }
 
